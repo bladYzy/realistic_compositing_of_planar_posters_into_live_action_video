@@ -43,8 +43,13 @@ def select_mask(image):
     while True:
         cv2.imshow("Image", mask_image)
         key = cv2.waitKey(1) & 0xFF
+        print(f"Key pressed: {key}")  # Debug print
 
-        if key == 13:  # Enter key
+        if key == 13 or key == 10:  # Enter key (sometimes 10 on certain systems)
+            print("Enter key detected, breaking loop.")  # Debug print
+            break
+        elif key == 27:  # ESC key to exit loop in case 'Enter' isn't working
+            print("ESC key detected, breaking loop.")  # Debug print
             break
 
     # Create mask from points
@@ -54,12 +59,6 @@ def select_mask(image):
 
     cv2.destroyWindow("Image")
     return mask
-
-# Test the function
-mask = select_mask(image)
-cv2.imshow("Mask", mask)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
 
 
 
