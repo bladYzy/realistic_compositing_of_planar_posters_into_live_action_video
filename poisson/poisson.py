@@ -149,8 +149,8 @@ def poisson_blend(source, mask, target, offset):
 
 
 def main():
-    source_path = 'source1.jpg'
-    target_path = 'target1.jpg'
+    source_path = 'source0.jpg'
+    target_path = 'target0.jpg'
 
     source = cv2.imread(source_path)
     target = cv2.imread(target_path)
