@@ -64,29 +64,35 @@ cv2.destroyAllWindows()
 
 
 def fix_images(source, mask, target, offset):
+    source_height, source_width = source.shape[:2]
+    target_height, target_width = target.shape[:2]
+
     # Create empty arrays for the new source and mask with the size of the target
     new_source = np.zeros_like(target)
-    new_mask = np.zeros_like(mask)
+    new_mask = np.zeros(target.shape[:2], dtype=np.uint8)
     
-    # Calculate the bounds of the new source and mask
-    y_start = max(0, offset[0])
-    y_end = min(target.shape[0], offset[0] + source.shape[0])
+    # Calculate the overlapping region considering the offset
+    y_start, x_start = offset
+    y_end = min(y_start + source_height, target_height)
+    x_end = min(x_start + source_width, target_width)
     
-    x_start = max(0, offset[1])
-    x_end = min(target.shape[1], offset[1] + source.shape[1])
-    
-    # Calculate the bounds of the original source and mask
+    # Calculate the bounds of the source to be used
     source_y_start = max(0, -offset[0])
-    source_y_end = source_y_start + y_end - y_start
+    source_y_end = source_height - max(0, (y_start + source_height) - target_height)
     
     source_x_start = max(0, -offset[1])
-    source_x_end = source_x_start + x_end - x_start
+    source_x_end = source_width - max(0, (x_start + source_width) - target_width)
     
+    # Ensure there is an overlap; if not, return original images
+    if y_end - y_start <= 0 or x_end - x_start <= 0:
+        return source, mask, target
+
     # Place the source and mask into the new images at the offset position
     new_source[y_start:y_end, x_start:x_end] = source[source_y_start:source_y_end, source_x_start:source_x_end]
     new_mask[y_start:y_end, x_start:x_end] = mask[source_y_start:source_y_end, source_x_start:source_x_end]
     
     return new_source, new_mask, target
+
 
 
 def poisson_blend(source, mask, target, offset):
@@ -151,7 +157,7 @@ def main():
 
     mask = select_mask(source)
 
-    source, mask, target = fix_images(source, mask, target, offset=(0, 0))
+    source, mask, target = fix_images(source, mask, target, offset=(380, 285))
 
     output = poisson_blend(source, mask, target)
 
