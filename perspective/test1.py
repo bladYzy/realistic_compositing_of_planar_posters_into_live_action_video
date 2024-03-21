@@ -2,55 +2,51 @@ import cv2
 import numpy as np
 
 # 全局变量
-points = []  # 存储选取的点
-perspective_ready = False  # 透视变换是否准备好
-wall_points = []  # 墙面的四个点
+points = []  # 存储用户点击的点
 
+# 鼠标回调函数
+def mouse_callback(event, x, y, flags, param):
+    global points, img
+    if event == cv2.EVENT_RBUTTONDOWN:  # 右键点击
+        cv2.circle(img, (x, y), 5, (0, 0, 255), -1)  # 红色表示选择的点
+        points.append((x, y))
+        if len(points) == 4:  # 选择了四个点后自动绘制中心矩形
+            draw_center_rectangle()
+        cv2.imshow("Image", img)
 
-def draw_circle(event, x, y, flags, param):
-    global points, perspective_ready, wall_points
-
-    # 右键点击事件
-    if event == cv2.EVENT_RBUTTONDOWN:
-        if len(points) < 4:  # 先选择墙面的四个角点
-            cv2.circle(img, (x, y), 5, (0, 255, 0), -1)
-            wall_points.append([x, y])
-        elif len(points) == 4:  # 选择矩形的对角顶点
-            cv2.circle(img, (x, y), 5, (0, 0, 255), -1)
-        else:  # 选择第二个矩形对角顶点并进行透视变换
-            cv2.circle(img, (x, y), 5, (255, 0, 0), -1)
-            apply_perspective_transform(wall_points, points[4:], img)
-            perspective_ready = True
-
-        points.append([x, y])
-
-
-def apply_perspective_transform(wall_points, rect_points, img):
+def draw_center_rectangle():
+    global points, img
+    # 计算中心点
+    center_point = np.mean(points, axis=0).astype(int)
+    width = 50
+    height = 30
+    top_left = (center_point[0] - width // 2, center_point[1] - height // 2)
+    bottom_right = (center_point[0] + width // 2, center_point[1] + height // 2)
+    cv2.rectangle(img, top_left, bottom_right, (255, 0, 0), 2)  # 蓝色表示绘制的矩形
     # 透视变换
-    pts1 = np.float32(wall_points)
-    pts2 = np.float32([[0, 0], [300, 0], [300, 300], [0, 300]])  # 假定墙面映射到的新平面
+    perform_perspective_transform()
 
-    matrix = cv2.getPerspectiveTransform(pts1, pts2)
-    result = cv2.warpPerspective(img, matrix, (300, 300))
+def perform_perspective_transform():
+    global points, img
+    # 目标矩形的四个角点
+    width, height = 200, 100
+    dst_points = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype="float32")
+    # 计算透视变换矩阵
+    M = cv2.getPerspectiveTransform(np.float32(points), dst_points)
+    # 应用透视变换
+    warped = cv2.warpPerspective(img, M, (width, height))
+    cv2.imshow("Warped Image", warped)
 
-    # 计算变换后的矩形点
-    rect_pts = np.float32(rect_points).reshape(-1, 1, 2)
-    transformed_rect_pts = cv2.perspectiveTransform(rect_pts, matrix)
+# 主程序
+if __name__ == "__main__":
+    # 加载图片
+    img = np.zeros((512, 512, 3), np.uint8)  # 创建一个黑色的图像
+    cv2.namedWindow("Image")
+    cv2.setMouseCallback("Image", mouse_callback)
 
-    # 在变换后的图像上绘制矩形
-    transformed_rect_pts = transformed_rect_pts.reshape(-1, 2).astype(int)
-    cv2.rectangle(result, tuple(transformed_rect_pts[0]), tuple(transformed_rect_pts[1]), (255, 0, 0), 3)
-    cv2.imshow("Perspective Transform", result)
+    while True:
+        cv2.imshow("Image", img)
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
+            break
 
-
-# 加载图像
-img = cv2.imread("sample1.jpg")  # 更改为你的图片路径
-cv2.namedWindow('image')
-cv2.setMouseCallback('image', draw_circle)
-
-while (True):
-    cv2.imshow('image', img)
-    if cv2.waitKey(20) & 0xFF == 27:  # 按下ESC退出
-        break
-
-cv2.destroyAllWindows()
+    cv2.destroyAllWindows()
