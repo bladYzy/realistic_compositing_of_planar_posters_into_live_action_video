@@ -1,70 +1,86 @@
 import cv2
 import numpy as np
 
-# 全局变量
-refPt = []  # 存储透视变换的参考点
-scaling_factor = 1.0  # 图像缩放因子
-dragging = False  # 是否正在拖动图像
-orig_img = None  # 原始图像
-img = None  # 当前显示的图像（可能被移动或缩放）
-dx, dy = 0, 0  # 图像移动的偏移量
+drawing = False  # 如果按下鼠标，则为真
+ix, iy = -1, -1
+perspective_points = []
+original_image = cv2.imread("sample1.jpg")
+img = original_image.copy()
+zoom_level = 1.0
+moved = False
 
-def click_and_crop(event, x, y, flags, param):
-    global refPt, dragging, dx, dy, scaling_factor, img
+
+# 鼠标回调函数
+def draw_rectangle_with_perspective(event, x, y, flags, param):
+    global ix, iy, drawing, perspective_points, img, zoom_level, moved
 
     if event == cv2.EVENT_RBUTTONDOWN:
-        if len(refPt) < 4:
-            # 选择透视变换的四个点
-            refPt.append((x, y))
-            cv2.circle(img, (x, y), 5, (0, 255, 0), -1)
-        if len(refPt) == 4:
-            # 应用透视变换
-            apply_perspective_transform()
-    elif event == cv2.EVENT_LBUTTONDOWN:
-        dragging = True
-        dx, dy = x, y
-    elif event == cv2.EVENT_MOUSEMOVE and dragging:
-        img = np.roll(orig_img, (int((y-dy)*scaling_factor), int((x-dx)*scaling_factor)), axis=(0,1))
-    elif event == cv2.EVENT_LBUTTONUP:
-        dragging = False
-    elif event == cv2.EVENT_MOUSEWHEEL:
-        if flags > 0:
-            scaling_factor *= 1.1
+        if len(perspective_points) < 4:
+            # 将鼠标位置调整到缩放和移动后的坐标
+            adjusted_x, adjusted_y = int(x / zoom_level), int(y / zoom_level)
+            perspective_points.append((adjusted_x, adjusted_y))
+            cv2.circle(img, (adjusted_x, adjusted_y), 5, (0, 0, 255), -1)
         else:
-            scaling_factor /= 1.1
-        img = cv2.resize(orig_img, None, fx=scaling_factor, fy=scaling_factor, interpolation=cv2.INTER_LINEAR)
+            print("All perspective points are selected. Press 'r' to reset.")
 
-def apply_perspective_transform():
-    global refPt, orig_img, img, scaling_factor
-    # 定义透视变换的目标点
-    pts_dst = np.float32([[0, 0], [img.shape[1], 0], [img.shape[1], img.shape[0]], [0, img.shape[0]]])
-    # 计算透视变换矩阵并应用
-    M = cv2.getPerspectiveTransform(np.float32(refPt), pts_dst)
-    img = cv2.warpPerspective(orig_img, M, (img.shape[1], img.shape[0]))
-    orig_img = img.copy()
-    scaling_factor = 1.0
-    refPt = []
+    elif event == cv2.EVENT_LBUTTONDOWN:
+        drawing = True
+        ix, iy = x, y
+
+    elif event == cv2.EVENT_MOUSEMOVE and drawing:
+        temp_img = img.copy()
+        cv2.rectangle(temp_img, (ix, iy), (x, y), (0, 255, 0), 2)
+        show_image(temp_img)
+
+    elif event == cv2.EVENT_LBUTTONUP:
+        drawing = False
+        cv2.rectangle(img, (ix, iy), (x, y), (0, 255, 0), 2)
+
+
+def show_image(image, title='image'):
+    global zoom_level
+    resized_image = cv2.resize(image, None, fx=zoom_level, fy=zoom_level, interpolation=cv2.INTER_LINEAR)
+    cv2.imshow(title, resized_image)
+
 
 def reset_image():
-    global orig_img, img, scaling_factor, refPt
-    img = orig_img.copy()
-    scaling_factor = 1.0
-    refPt = []
+    global img, perspective_points, zoom_level
+    img = original_image.copy()
+    perspective_points = []
+    zoom_level = 1.0
+    show_image(img)
 
-# 加载图像
-orig_img = cv2.imread("sample1.jpg")
-img = orig_img.copy()
 
-cv2.namedWindow("image")
-cv2.setMouseCallback("image", click_and_crop)
+def apply_perspective_transform(image, points):
+    if len(points) != 4:
+        return image
+    # 源四边形坐标
+    pts1 = np.float32(points)
+    # 目标四边形坐标
+    pts2 = np.float32([[0, 0], [300, 0], [300, 300], [0, 300]])
+    # 获取透视变换矩阵
+    matrix = cv2.getPerspectiveTransform(pts1, pts2)
+    # 应用透视变换
+    result = cv2.warpPerspective(image, matrix, (300, 300))
+    return result
 
-# 主循环
+
+cv2.namedWindow('image')
+cv2.setMouseCallback('image', draw_rectangle_with_perspective)
+
 while True:
-    cv2.imshow("image", img)
-    key = cv2.waitKey(1) & 0xFF
-
-    # 按 'esc' 重置图像
-    if key == 27:
+    show_image(img)
+    k = cv2.waitKey(1) & 0xFF
+    if k == 27:  # 按Esc键退出
+        break
+    elif k == ord('r'):  # 重置图像
         reset_image()
+    elif k == ord('+') and zoom_level < 3.0:  # 放大图像
+        zoom_level += 0.1
+    elif k == ord('-') and zoom_level > 0.5:  # 缩小图像
+        zoom_level -= 0.1
+    elif k == ord('p') and len(perspective_points) == 4:  # 应用透视变换
+        warped_image = apply_perspective_transform(original_image, perspective_points)
+        cv2.imshow("Perspective Transform", warped_image)
 
 cv2.destroyAllWindows()
