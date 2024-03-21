@@ -30,7 +30,7 @@ def draw_mask(event, x, y, flags, param):
         cv2.imshow("Image", mask_image)
 
 # Initialize mask image
-image = cv2.imread('source1.jpg')  # 要getmask的照片 source image
+image = cv2.imread('source0.jpg')  # 要getmask的照片 source image
 mask_image = image.copy()
 cv2.namedWindow("Image")
 cv2.setMouseCallback("Image", draw_mask)
