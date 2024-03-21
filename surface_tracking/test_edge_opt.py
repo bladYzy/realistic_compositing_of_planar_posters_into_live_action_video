@@ -85,5 +85,5 @@ while True:
     points = good_points
 
 cap.release()
-out.release()  # 关闭VideoWriter对象
+out.release()
 cv2.destroyAllWindows()
