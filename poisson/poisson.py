@@ -151,7 +151,7 @@ def main():
 
     mask = select_mask(source)
 
-    source, mask, target = fix_images(source, mask, target, offset=(0, 0))
+    source, mask, target = fix_images(source, mask, target, offset=(381, 286))
 
     output = poisson_blend(source, mask, target)
 
