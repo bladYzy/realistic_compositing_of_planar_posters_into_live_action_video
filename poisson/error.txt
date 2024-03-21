@@ -1,0 +1,22 @@
+PS F:\461\461_project\poisson> python poisson.py
+Draw the mask region on the image. Right-click to remove last point. Press 'ENTER' to confirm.
+Draw the mask region on the image. Right-click to remove last point. Press 'ENTER' to confirm.
+Traceback (most recent call last):
+  File "F:\461\461_project\poisson\poisson.py", line 164, in <module>
+    main()
+  File "F:\461\461_project\poisson\poisson.py", line 154, in main
+    source, mask, target = fix_images(source, mask, target, offset=(381, 286))
+  File "F:\461\461_project\poisson\poisson.py", line 86, in fix_images
+    new_source[y_start:y_end, x_start:x_end] = source[source_y_start:source_y_end, source_x_start:source_x_end]
+ValueError: could not broadcast input array from shape (970,517,3) into shape (0,0,3)
+PS F:\461\461_project\poisson> python poisson.py
+Draw the mask region on the image. Right-click to remove last point. Press 'ENTER' to confirm.
+Draw the mask region on the image. Right-click to remove last point. Press 'ENTER' to confirm.
+Traceback (most recent call last):
+  File "F:\461\461_project\poisson\poisson.py", line 164, in <module>
+    main()
+  File "F:\461\461_project\poisson\poisson.py", line 154, in main
+    source, mask, target = fix_images(source, mask, target, offset=(381, 286))
+  File "F:\461\461_project\poisson\poisson.py", line 87, in fix_images
+    new_mask[y_start:y_end, x_start:x_end] = mask[source_y_start:source_y_end, source_x_start:source_x_end]
+ValueError: could not broadcast input array from shape (211,163) into shape (0,0)
