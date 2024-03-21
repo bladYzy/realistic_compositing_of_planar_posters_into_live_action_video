@@ -2,89 +2,55 @@ import cv2
 import numpy as np
 
 # 全局变量
-points = []  # 存储选定的点
-src_pts = []  # 墙面四个角点
-dst_pts = []  # 矩形的两个对角点
-img = None
-original_img = None
-perspective_transform_matrix = None
-drag_start = None
-zoom_level = 1.0
-img_position = [0, 0]
+points = []  # 存储选取的点
+perspective_ready = False  # 透视变换是否准备好
+wall_points = []  # 墙面的四个点
 
-# 鼠标事件回调函数
-def mouse_event(event, x, y, flags, param):
-    global src_pts, dst_pts, img, original_img, perspective_transform_matrix, drag_start, zoom_level, img_position
 
+def draw_circle(event, x, y, flags, param):
+    global points, perspective_ready, wall_points
+
+    # 右键点击事件
     if event == cv2.EVENT_RBUTTONDOWN:
-        if len(src_pts) < 4:
-            # 选择墙面的四个角点
+        if len(points) < 4:  # 先选择墙面的四个角点
             cv2.circle(img, (x, y), 5, (0, 255, 0), -1)
-            src_pts.append([x, y])
-            if len(src_pts) == 4:
-                # 计算透视变换矩阵
-                dst = np.array([[0, 0], [300, 0], [300, 300], [0, 300]], np.float32)
-                perspective_transform_matrix = cv2.getPerspectiveTransform(np.float32(src_pts), dst)
-        elif len(dst_pts) < 2:
-            # 选择矩形的对角点并进行透视变换
-            dst_pts.append([x, y])
-            if len(dst_pts) == 2:
-                # 应用透视变换到选择的点
-                pts = np.float32([dst_pts]).reshape(-1, 1, 2)
-                transformed_pts = cv2.perspectiveTransform(pts, perspective_transform_matrix)
-                # 在原图上绘制变换后的矩形
-                transformed_pts = transformed_pts.reshape(-1, 2)
-                cv2.polylines(img, [np.int32(transformed_pts)], True, (255, 0, 0), 3)
-                dst_pts.clear()  # 清除点以重新开始
+            wall_points.append([x, y])
+        elif len(points) == 4:  # 选择矩形的对角顶点
+            cv2.circle(img, (x, y), 5, (0, 0, 255), -1)
+        else:  # 选择第二个矩形对角顶点并进行透视变换
+            cv2.circle(img, (x, y), 5, (255, 0, 0), -1)
+            apply_perspective_transform(wall_points, points[4:], img)
+            perspective_ready = True
 
-    elif event == cv2.EVENT_MOUSEMOVE:
-        if drag_start:
-            dx = x - drag_start[0]
-            dy = y - drag_start[1]
-            img_position[0] += dx
-            img_position[1] += dy
-            drag_start = [x, y]
-            update_img()
+        points.append([x, y])
 
-    elif event == cv2.EVENT_LBUTTONDOWN:
-        drag_start = [x, y]
 
-    elif event == cv2.EVENT_LBUTTONUP:
-        drag_start = None
+def apply_perspective_transform(wall_points, rect_points, img):
+    # 透视变换
+    pts1 = np.float32(wall_points)
+    pts2 = np.float32([[0, 0], [300, 0], [300, 300], [0, 300]])  # 假定墙面映射到的新平面
 
-    elif event == cv2.EVENT_MOUSEWHEEL:
-        if flags > 0:
-            zoom_level *= 1.1
-        else:
-            zoom_level /= 1.1
-        update_img()
+    matrix = cv2.getPerspectiveTransform(pts1, pts2)
+    result = cv2.warpPerspective(img, matrix, (300, 300))
 
-# 更新显示图像
-def update_img():
-    global img, original_img, zoom_level, img_position
-    nh, nw = int(original_img.shape[0] * zoom_level), int(original_img.shape[1] * zoom_level)
-    resized_img = cv2.resize(original_img, (nw, nh))
-    x, y = img_position
-    h, w = img.shape[:2]
-    x = min(max(0, x), nw - w)
-    y = min(max(0, y), nh - h)
-    img_position = [x, y]
-    img = resized_img[y:y+h, x:x+w]
+    # 计算变换后的矩形点
+    rect_pts = np.float32(rect_points).reshape(-1, 1, 2)
+    transformed_rect_pts = cv2.perspectiveTransform(rect_pts, matrix)
 
-def main(image_path):
-    global img, original_img
-    original_img = cv2.imread(image_path)
-    img = original_img.copy()
-    cv2.namedWindow('Image', cv2.WINDOW_AUTOSIZE)
-    cv2.setMouseCallback('Image', mouse_event)
+    # 在变换后的图像上绘制矩形
+    transformed_rect_pts = transformed_rect_pts.reshape(-1, 2).astype(int)
+    cv2.rectangle(result, tuple(transformed_rect_pts[0]), tuple(transformed_rect_pts[1]), (255, 0, 0), 3)
+    cv2.imshow("Perspective Transform", result)
 
-    while True:
-        cv2.imshow('Image', img)
-        key = cv2.waitKey(1) & 0xFF
-        if key == 27:  # ESC键
-            break
 
-    cv2.destroyAllWindows()
+# 加载图像
+img = cv2.imread("sample1.jpg")  # 更改为你的图片路径
+cv2.namedWindow('image')
+cv2.setMouseCallback('image', draw_circle)
 
-if __name__ == '__main__':
-    main('path_to
+while (True):
+    cv2.imshow('image', img)
+    if cv2.waitKey(20) & 0xFF == 27:  # 按下ESC退出
+        break
+
+cv2.destroyAllWindows()
