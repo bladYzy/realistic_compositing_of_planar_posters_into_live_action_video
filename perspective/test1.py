@@ -40,7 +40,7 @@ def perform_perspective_transform():
 # 主程序
 if __name__ == "__main__":
     # 加载图片
-    img = cv2.imread("sample1.jpg")  # 创建一个黑色的图像
+    img = cv2.imread("sample2.jpg")  # 创建一个黑色的图像
     cv2.namedWindow("Image")
     cv2.setMouseCallback("Image", mouse_callback)
 
