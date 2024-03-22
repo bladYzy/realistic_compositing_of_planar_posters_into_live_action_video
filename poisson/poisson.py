@@ -98,74 +98,60 @@ def poisson_blend(source, mask, target, offset):
     # Preprocess images and mask
     source_processed, mask_processed, target_processed = fix_images(source, mask, target, offset)
     
-    # Flatten processed images and mask for easier handling
-    mask_flat = mask_processed.ravel()
-    rows, cols, channels = target_processed.shape
+    rows, cols, _ = target_processed.shape
     N = rows * cols
+    mask_flat = mask_processed.flatten()
     
-    # Initialize sparse matrix A and vectors b
+    # Initialize sparse matrix and vectors for b
     A = scipy.sparse.lil_matrix((N, N))
-    b = np.zeros((N, channels))
+    b = np.zeros(N)
     
-    # Utility function to convert 2D indices to 1D
-    def index(i, j):
-        return i * cols + j
-
-    # Set up A and b for each pixel under the mask
-    for i in range(rows):
-        for j in range(cols):
-            idx = index(i, j)
-            if mask_flat[idx]:  # Pixel is under the mask
-                A[idx, idx] = 4  # Diagonal value
-                neighbors = [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]
-                
-                for ni, nj in neighbors:
-                    if 0 <= ni < rows and 0 <= nj < cols:
-                        n_idx = index(ni, nj)
-                        if mask_flat[n_idx]:
-                            A[idx, n_idx] = -1
-                        else:
-                            # Boundary condition: Use target's value
-                            for c in range(channels):
-                                b[idx, c] += target_processed[ni, nj, c]
-                
-                # Gradient condition: Use source's gradient
-                for c in range(channels):
-                    source_grad = 4 * source_processed[i, j, c] - sum(source_processed[mi, mj, c] for mi, mj in neighbors if 0 <= mi < rows and 0 <= mj < cols)
-                    b[idx, c] += source_grad
-
-    # Convert A to CSR format for efficient solving
-    A_csr = A.tocsr()
-
-    # Solve A x = b for each color channel
-    result = np.copy(target_processed)
-    for c in range(channels):
-        x = spsolve(A_csr, b[:, c])
-        result_flat = result[:, :, c].flatten()
-        result_flat[mask_flat] = x  # Update only the masked pixels
-        result[:, :, c] = result_flat.reshape((rows, cols))
-
-    return result
-
+    for color in range(3):  # Iterate through color channels
+        source_channel = source_processed[:, :, color].flatten()
+        target_channel = target_processed[:, :, color].flatten()
+        
+        for i in range(rows):
+            for j in range(cols):
+                idx = i * cols + j
+                if mask_flat[idx]:  # If pixel is part of the mask
+                    A[idx, idx] = 4
+                    for d in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # Neighbors
+                        ni, nj = i + d[0], j + d[1]
+                        n_idx = ni * cols + nj
+                        if 0 <= ni < rows and 0 <= nj < cols:
+                            if mask_flat[n_idx]:
+                                A[idx, n_idx] = -1
+                            else:
+                                b[idx] += target_channel[n_idx]
+                        # Set b for the source's gradient
+                        b[idx] += source_channel[idx] - source_channel[n_idx] if mask_flat[n_idx] else 0
+        
+        # Solve the linear system
+        A_csr = A.tocsr()
+        x = spsolve(A_csr, b)
+        
+        # Update the target image with the solution
+        target_processed[:, :, color] = x.reshape((rows, cols))
+    
+    return target_processed
 
 
 def main():
-    source_path = 'source0.jpg'
-    target_path = 'target0.jpg'
-
+    source_path = "source0.jpg"
+    target_path = "target0.jpg"
+    mask_path = "mask.jpg"
+    
     source = cv2.imread(source_path)
     target = cv2.imread(target_path)
-
-    mask = select_mask(source)
-
-    source, mask, target = fix_images(source, mask, target, offset=(100, 100))
-
-    output = poisson_blend(source, mask, target, offset=(100, 100))
-
-    cv2.imwrite('output.jpg', output)
-    cv2.imshow('Blended Image', output)
+    mask = cv2.imread(mask_path, 0)  # Assuming mask is grayscale
+    mask = mask / 255  # Normalize mask to be 0 or 1
+    
+    offset = (50, 50)  # Example offset
+    
+    blended = poisson_blend(source, mask, target, offset)
+    cv2.imshow("Blended Image", blended)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
