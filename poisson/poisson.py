@@ -158,7 +158,7 @@ def main():
 
     source, mask, target = fix_images(source, mask, target, offset=(380, 285))
 
-    output = poisson_blend(source, mask, target)
+    output = poisson_blend(source, mask, target, offset=(380, 285))
 
     cv2.imwrite('output.jpg', output)
     cv2.imshow('Blended Image', output)
