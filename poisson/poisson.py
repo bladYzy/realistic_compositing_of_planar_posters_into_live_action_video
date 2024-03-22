@@ -72,13 +72,13 @@ def fix_images(source, mask, target, offset):
 def poisson_blend(source, mask, target, offset):
     # Preprocess images and mask
     source_processed, mask_processed, target_processed = fix_images(source, mask, target, offset)
-    rows, cols, channels = target_processed.shape
+    rows, cols, _ = target_processed.shape
     N = rows * cols
     mask_flat = mask_processed.flatten()
 
     # Initialize sparse matrix A and vectors b for each color channel
     A = scipy.sparse.lil_matrix((N, N))
-    b = np.zeros((N, channels))
+    b = np.zeros((N, 3))
 
     # Utility function to convert 2D indices to 1D
     def index(i, j):
@@ -87,7 +87,7 @@ def poisson_blend(source, mask, target, offset):
     # Define neighbor positions (up, left, down, right)
     neighbors = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
-    for color in range(channels):
+    for color in range(3):
         # Flatten the current channel for source and target images
         source_flat = source_processed[:, :, color].flatten()
         target_flat = target_processed[:, :, color].flatten()
@@ -116,17 +116,14 @@ def poisson_blend(source, mask, target, offset):
                         if 0 <= ny < rows and 0 <= nx < cols:
                             n_idx = index(ny, nx)
                             b[idx, color] += source_flat[idx] - source_flat[n_idx]
-                else:
-                    # For non-mask pixels, simply copy the target image's values
-                    b[idx, color] = target_flat[idx]
 
     # Convert A to CSR format for efficient solving
     A_csr = A.tocsr()
 
     # Solve the linear system A * x = b for each color channel
     result = np.copy(target_processed)  # Initialize result image
-    for color in range(channels):
-        x = scipy.sparse.linalg.spsolve(A_csr, b[:, color])
+    for color in range(3):
+        x = spsolve(A_csr, b[:, color])
         result_flat = result[:, :, color].flatten()
         result_flat[mask_flat] = x  # Update only pixels within the mask
         result[:, :, color] = result_flat.reshape((rows, cols))
@@ -136,27 +133,24 @@ def poisson_blend(source, mask, target, offset):
 
 def main():
     source_path = "source0.jpg"
-    source = cv2.imread(source_path)
-    if source is None:
-        print("Error loading source image.")
-        return
-    
     target_path = "target0.jpg"
+
+    source = cv2.imread(source_path)
     target = cv2.imread(target_path)
-    if target is None:
-        print("Error loading target image.")
-        return
 
-    mask = select_mask(source)  # Let the user draw the mask on the source image
+    mask = select_mask(source)
 
-    # Assume an example offset or calculate as needed
-    offset = (50, 50)
+    # Define offset from the top left corner (y, x)
+    offset = (50, 50)  # Example offset, update according to your needs
 
+    # Perform Poisson blending
     blended_result = poisson_blend(source, mask, target, offset)
+
+    # Show and save the blended image
     cv2.imshow('Blended Image', blended_result)
+    cv2.imwrite('blended_result.jpg', blended_result)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-    cv2.imwrite('blended_result.jpg', blended_result)  # Save the blended image
 
 if __name__ == "__main__":
     main()
