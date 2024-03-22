@@ -95,55 +95,70 @@ def fix_images(source, mask, target, offset):
 
 
 def poisson_blend(source, mask, target, offset):
-    # Ensure the source, mask, and target are the same size
+    # Ensure the source, mask, and target are correctly prepared
     source, mask, target = fix_images(source, mask, target, offset)
     
-    rows, cols, num_colors = source.shape
-    max_index = rows * cols
-    
-    # Initialize the sparse matrix A and vectors x and b for each color channel
-    A = scipy.sparse.lil_matrix((max_index, max_index))
-    b = np.zeros((max_index, num_colors))
-    
-    # Create an index map for pixels
-    index_map = np.arange(max_index).reshape(rows, cols)
-    
-    # Define neighbor positions (up, left, down, right)
-    positions = [(-1, 0), (0, -1), (1, 0), (0, 1)]
-    
-    # Loop through each color channel
-    for color in range(num_colors):
-        # Flatten the color channels
-        source_flat = source[:, :, color].flatten()
-        target_flat = target[:, :, color].flatten()
-        
-        # For each pixel in the mask
-        for index in range(max_index):
-            if mask.flat[index]:
-                A[index, index] = 4
-                for pos in positions:
-                    i, j = divmod(index, cols)
-                    ni, nj = i + pos[0], j + pos[1]
-                    if 0 <= ni < rows and 0 <= nj < cols:
-                        n_index = index_map[ni, nj]
-                        if mask[ni, nj]:
-                            A[index, n_index] = -1
-                        else:
-                            b[index, color] += target_flat[n_index]
-                # Compute b using the source's gradients
-                b[index, color] += 4 * source_flat[index] - sum(source_flat[index + offset] for offset in [1, -1, cols, -cols] if 0 <= index + offset < max_index)
+    rows, cols, num_colors = target.shape
+    N = rows * cols  # Total number of pixels
 
-    # Convert A to a more efficient format for solving
-    A = A.tocsc()
-    
-    # Solve the system for each color channel
-    result = np.zeros_like(target)
+    # Initialize the sparse matrix A and vectors b for each color channel
+    A = scipy.sparse.lil_matrix((N, N))
+    b = np.zeros((N, num_colors))
+
+    # For convenience, define the index function for the flattened array
+    index = lambda i, j: i * cols + j
+
+    # Define neighbor offsets for up, down, left, right
+    offsets = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+    mask_flat = mask.ravel()  # Flatten the mask for easy indexing
+
     for color in range(num_colors):
-        x = spsolve(A, b[:, color])
-        result_flat = result[:, :, color].flatten()
-        result_flat[mask.flatten()] = x
-        result[:, :, color] = result_flat.reshape(rows, cols)
-        
+        source_flat = source[:, :, color].ravel()
+        target_flat = target[:, :, color].ravel()
+
+        # Iterate over each pixel in the image
+        for i in range(rows):
+            for j in range(cols):
+                idx = index(i, j)  # Linear index in the flattened array
+
+                if mask_flat[idx]:  # If this pixel is in the mask
+                    A[idx, idx] = 4  # Diagonal value
+
+                    # Iterate over all neighbors
+                    for dy, dx in offsets:
+                        ny, nx = i + dy, j + dx
+
+                        # Boundary check
+                        if 0 <= ny < rows and 0 <= nx < cols:
+                            n_idx = index(ny, nx)
+
+                            if mask_flat[n_idx]:  # If neighbor is also in the mask
+                                A[idx, n_idx] = -1
+                            else:
+                                # For boundary pixels, use target image values
+                                b[idx, color] += target_flat[n_idx]
+                    
+                    # Set up b using the divergence of the gradient field
+                    # This part depends on your specific implementation needs
+                    # For simplicity, let's use the source image intensity for now
+                    b[idx, color] += 4 * source_flat[idx] - \
+                                     sum(source_flat[index(i + y, j + x)] for y, x in offsets if 0 <= i + y < rows and 0 <= j + x < cols)
+
+    # Convert A to CSR format for efficient solving
+    A_csr = A.tocsr()
+
+    # Solve the system A * x = b for each color channel
+    result = np.copy(target)  # Start with the target as a base for the result
+
+    for color in range(num_colors):
+        x = spsolve(A_csr, b[:, color])  # Solve for this color channel
+
+        # Place the solved values back into the image
+        result_flat = result[:, :, color].ravel()
+        result_flat[mask_flat] = x  # Only update pixels within the mask
+        result[:, :, color] = result_flat.reshape((rows, cols))
+
     return result
 
 
@@ -156,9 +171,9 @@ def main():
 
     mask = select_mask(source)
 
-    source, mask, target = fix_images(source, mask, target, offset=(380, 285))
+    source, mask, target = fix_images(source, mask, target, offset=(100, 100))
 
-    output = poisson_blend(source, mask, target, offset=(380, 285))
+    output = poisson_blend(source, mask, target, offset=(100, 100))
 
     cv2.imwrite('output.jpg', output)
     cv2.imshow('Blended Image', output)
