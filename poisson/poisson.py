@@ -63,103 +63,90 @@ def select_mask(image):
 
 
 def fix_images(source, mask, target, offset):
+    # Get the dimensions of source and target images
     source_height, source_width = source.shape[:2]
     target_height, target_width = target.shape[:2]
 
-    # Create empty arrays for the new source and mask with the size of the target
+    # Initialize new_source and new_mask arrays
     new_source = np.zeros_like(target)
     new_mask = np.zeros(target.shape[:2], dtype=np.uint8)
     
-    # Calculate the overlapping region considering the offset
-    y_start, x_start = offset
-    y_end = min(y_start + source_height, target_height)
-    x_end = min(x_start + source_width, target_width)
-    
-    # Calculate the bounds of the source to be used
-    source_y_start = max(0, -offset[0])
-    source_y_end = source_height - max(0, (y_start + source_height) - target_height)
-    
-    source_x_start = max(0, -offset[1])
-    source_x_end = source_width - max(0, (x_start + source_width) - target_width)
-    
-    # Ensure there is an overlap; if not, return original images
-    if y_end - y_start <= 0 or x_end - x_start <= 0:
-        return source, mask, target
+    # Calculate the starting and ending coordinates for source and target
+    y_start_target, x_start_target = max(0, offset[0]), max(0, offset[1])
+    y_end_target = min(target_height, offset[0] + source_height)
+    x_end_target = min(target_width, offset[1] + source_width)
 
-    # Place the source and mask into the new images at the offset position
-    new_source[y_start:y_end, x_start:x_end] = source[source_y_start:source_y_end, source_x_start:source_x_end]
-    new_mask[y_start:y_end, x_start:x_end] = mask[source_y_start:source_y_end, source_x_start:source_x_end]
-    
+    y_start_source = max(0, -offset[0])
+    x_start_source = max(0, -offset[1])
+    y_end_source = source_height - max(0, (offset[0] + source_height) - target_height)
+    x_end_source = source_width - max(0, (offset[1] + source_width) - target_width)
+
+    # Ensure the regions to be copied are valid
+    if y_end_target - y_start_target > 0 and x_end_target - x_start_target > 0:
+        # Copy the relevant parts of source and mask to the target canvas
+        new_source[y_start_target:y_end_target, x_start_target:x_end_target] = \
+            source[y_start_source:y_end_source, x_start_source:x_end_source]
+        new_mask[y_start_target:y_end_target, x_start_target:x_end_target] = \
+            mask[y_start_source:y_end_source, x_start_source:x_end_source]
+
     return new_source, new_mask, target
 
 
 
+
 def poisson_blend(source, mask, target, offset):
-    # Ensure the source, mask, and target are correctly prepared
-    source, mask, target = fix_images(source, mask, target, offset)
+    # Preprocess images and mask
+    source_processed, mask_processed, target_processed = fix_images(source, mask, target, offset)
     
-    rows, cols, num_colors = target.shape
-    N = rows * cols  # Total number of pixels
-
-    # Initialize the sparse matrix A and vectors b for each color channel
+    # Flatten processed images and mask for easier handling
+    mask_flat = mask_processed.ravel()
+    rows, cols, channels = target_processed.shape
+    N = rows * cols
+    
+    # Initialize sparse matrix A and vectors b
     A = scipy.sparse.lil_matrix((N, N))
-    b = np.zeros((N, num_colors))
+    b = np.zeros((N, channels))
+    
+    # Utility function to convert 2D indices to 1D
+    def index(i, j):
+        return i * cols + j
 
-    # For convenience, define the index function for the flattened array
-    index = lambda i, j: i * cols + j
-
-    # Define neighbor offsets for up, down, left, right
-    offsets = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-
-    mask_flat = mask.ravel()  # Flatten the mask for easy indexing
-
-    for color in range(num_colors):
-        source_flat = source[:, :, color].ravel()
-        target_flat = target[:, :, color].ravel()
-
-        # Iterate over each pixel in the image
-        for i in range(rows):
-            for j in range(cols):
-                idx = index(i, j)  # Linear index in the flattened array
-
-                if mask_flat[idx]:  # If this pixel is in the mask
-                    A[idx, idx] = 4  # Diagonal value
-
-                    # Iterate over all neighbors
-                    for dy, dx in offsets:
-                        ny, nx = i + dy, j + dx
-
-                        # Boundary check
-                        if 0 <= ny < rows and 0 <= nx < cols:
-                            n_idx = index(ny, nx)
-
-                            if mask_flat[n_idx]:  # If neighbor is also in the mask
-                                A[idx, n_idx] = -1
-                            else:
-                                # For boundary pixels, use target image values
-                                b[idx, color] += target_flat[n_idx]
-                    
-                    # Set up b using the divergence of the gradient field
-                    # This part depends on your specific implementation needs
-                    # For simplicity, let's use the source image intensity for now
-                    b[idx, color] += 4 * source_flat[idx] - \
-                                     sum(source_flat[index(i + y, j + x)] for y, x in offsets if 0 <= i + y < rows and 0 <= j + x < cols)
+    # Set up A and b for each pixel under the mask
+    for i in range(rows):
+        for j in range(cols):
+            idx = index(i, j)
+            if mask_flat[idx]:  # Pixel is under the mask
+                A[idx, idx] = 4  # Diagonal value
+                neighbors = [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]
+                
+                for ni, nj in neighbors:
+                    if 0 <= ni < rows and 0 <= nj < cols:
+                        n_idx = index(ni, nj)
+                        if mask_flat[n_idx]:
+                            A[idx, n_idx] = -1
+                        else:
+                            # Boundary condition: Use target's value
+                            for c in range(channels):
+                                b[idx, c] += target_processed[ni, nj, c]
+                
+                # Gradient condition: Use source's gradient
+                for c in range(channels):
+                    source_grad = 4 * source_processed[i, j, c] - sum(source_processed[mi, mj, c] for mi, mj in neighbors if 0 <= mi < rows and 0 <= mj < cols)
+                    b[idx, c] += source_grad
 
     # Convert A to CSR format for efficient solving
     A_csr = A.tocsr()
 
-    # Solve the system A * x = b for each color channel
-    result = np.copy(target)  # Start with the target as a base for the result
-
-    for color in range(num_colors):
-        x = spsolve(A_csr, b[:, color])  # Solve for this color channel
-
-        # Place the solved values back into the image
-        result_flat = result[:, :, color].ravel()
-        result_flat[mask_flat] = x  # Only update pixels within the mask
-        result[:, :, color] = result_flat.reshape((rows, cols))
+    # Solve A x = b for each color channel
+    result = np.copy(target_processed)
+    for c in range(channels):
+        x = spsolve(A_csr, b[:, c])
+        result_flat = result[:, :, c].flatten()
+        result_flat[mask_flat] = x  # Update only the masked pixels
+        result[:, :, c] = result_flat.reshape((rows, cols))
 
     return result
+
 
 
 def main():
