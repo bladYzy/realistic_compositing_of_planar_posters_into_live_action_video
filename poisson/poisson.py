@@ -69,46 +69,70 @@ def fix_images(source, mask, target, offset):
 
     return new_source, new_mask, target
 
-# Function to perform Poisson blending
 def poisson_blend(source, mask, target, offset):
+    # Preprocess images and mask
     source_processed, mask_processed, target_processed = fix_images(source, mask, target, offset)
-    rows, cols, _ = target_processed.shape
+    rows, cols, channels = target_processed.shape
     N = rows * cols
     mask_flat = mask_processed.flatten()
+
+    # Initialize sparse matrix A and vectors b for each color channel
     A = scipy.sparse.lil_matrix((N, N))
-    b = np.zeros((N, 3))
-    
-    # Set up the sparse matrix A and vector b
-    for i in range(rows):
-        for j in range(cols):
-            idx = i * cols + j
-            if mask_flat[idx]:  # If pixel is part of the mask
-                A[idx, idx] = 4
-                neighbors = [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]
-                for ni, nj in neighbors:
-                    if 0 <= ni < rows and 0 <= nj < cols:
-                        n_idx = ni * cols + nj
-                        if mask_flat[n_idx]:
-                            A[idx, n_idx] = -1
-                        else:
-                            b[idx] += target_processed[ni, nj, _].mean()  # Use the mean value for simplicity
-                # Compute the source gradient for the masked pixels
-                grad_x = 0 if j == 0 else source_processed[i, j, :] - source_processed[i, j - 1, :]
-                grad_y = 0 if i == 0 else source_processed[i, j, :] - source_processed[i - 1, j, :]
-                b[idx] += np.sum(grad_x + grad_y)  # Sum the gradients for simplicity
-    
+    b = np.zeros((N, channels))
+
+    # Utility function to convert 2D indices to 1D
+    def index(i, j):
+        return i * cols + j
+
+    # Define neighbor positions (up, left, down, right)
+    neighbors = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+    for color in range(channels):
+        # Flatten the current channel for source and target images
+        source_flat = source_processed[:, :, color].flatten()
+        target_flat = target_processed[:, :, color].flatten()
+
+        # Iterate through each pixel in the mask
+        for i in range(rows):
+            for j in range(cols):
+                idx = index(i, j)
+                if mask_flat[idx]:  # Pixel is under the mask
+                    A[idx, idx] = 4  # Diagonal value is 4
+
+                    # Process neighbors
+                    for dy, dx in neighbors:
+                        ny, nx = i + dy, j + dx
+                        if 0 <= ny < rows and 0 <= nx < cols:
+                            n_idx = index(ny, nx)
+                            if mask_flat[n_idx]:  # Neighbor is also in the mask
+                                A[idx, n_idx] = -1
+                            else:
+                                # Boundary condition: use target image value
+                                b[idx, color] += target_flat[n_idx]
+
+                    # Compute the Laplacian operator (discrete Laplace)
+                    for dy, dx in neighbors:
+                        ny, nx = i + dy, j + dx
+                        if 0 <= ny < rows and 0 <= nx < cols:
+                            n_idx = index(ny, nx)
+                            b[idx, color] += source_flat[idx] - source_flat[n_idx]
+                else:
+                    # For non-mask pixels, simply copy the target image's values
+                    b[idx, color] = target_flat[idx]
+
     # Convert A to CSR format for efficient solving
     A_csr = A.tocsr()
 
-    # Solve the linear system A x = b for each color channel
-    blended_image = np.copy(target_processed)
-    for color in range(3):
-        x = spsolve(A_csr, b[:, color])
-        blended_channel = blended_image[:, :, color].flatten()
-        blended_channel[mask_flat] = x  # Replace the pixel values in the mask
-        blended_image[:, :, color] = blended_channel.reshape(rows, cols)
+    # Solve the linear system A * x = b for each color channel
+    result = np.copy(target_processed)  # Initialize result image
+    for color in range(channels):
+        x = scipy.sparse.linalg.spsolve(A_csr, b[:, color])
+        result_flat = result[:, :, color].flatten()
+        result_flat[mask_flat] = x  # Update only pixels within the mask
+        result[:, :, color] = result_flat.reshape((rows, cols))
 
-    return blended_image
+    return result
+
 
 def main():
     source_path = "source0.jpg"
