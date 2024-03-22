@@ -1,0 +1,7 @@
+File "F:\461\461_project\poisson\poisson.py", line 138, in <module>
+    main()
+  File "F:\461\461_project\poisson\poisson.py", line 131, in main
+    blended_result = poisson_blend(source, mask, target, offset)
+  File "F:\461\461_project\poisson\poisson.py", line 94, in poisson_blend
+    b[idx] += target_processed[ni, nj, _].mean()  # Use the mean value for simplicity
+IndexError: index 3 is out of bounds for axis 2 with size 3
