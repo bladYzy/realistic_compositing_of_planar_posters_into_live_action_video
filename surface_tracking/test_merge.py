@@ -6,6 +6,8 @@ def select_points(event, x, y, flags, params):
     if event == cv2.EVENT_LBUTTONDOWN and len(params[0]) < 4:
         params[0].append((x, y))
 
+def calculate_distance(p1, p2):
+    return np.linalg.norm(p1 - p2)
 
 def calculate_normal(p1, p2, p3):
     v1 = p2 - p1
@@ -39,7 +41,7 @@ cv2.destroyAllWindows()
 points = np.float32(points)
 initial_points = points.copy()
 
-poster = cv2.imread('poster.jpg')
+poster = cv2.imread('poster1.jpg')
 poster_size = (frame.shape[1], frame.shape[0])
 poster_points = np.float32([[0, 0], [poster_size[0], 0], [poster_size[0], poster_size[1]], [0, poster_size[1]]])
 
@@ -55,7 +57,12 @@ while True:
     new_points, status, error = cv2.calcOpticalFlowPyrLK(old_gray, gray_frame, points, None, **lk_params)
 
     good_points = new_points[status.flatten() == 1]
-
+    if len(good_points) == 4:
+        width1 = calculate_distance(good_points[0], good_points[1])
+        width2 = calculate_distance(good_points[2], good_points[3])
+        height1 = calculate_distance(good_points[0], good_points[3])
+        height2 = calculate_distance(good_points[1], good_points[2])
+        print(f"Width: {np.mean([width1, width2])}, Height: {np.mean([height1, height2])}")
     # 计算透视
     M = cv2.getPerspectiveTransform(poster_points, good_points)
     warped_poster = cv2.warpPerspective(poster, M, (frame.shape[1], frame.shape[0]))
