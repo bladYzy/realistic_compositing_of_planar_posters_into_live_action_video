@@ -1,38 +1,74 @@
 import numpy as np
 import cv2
-from skimage.measure import ransac
-from skimage.transform import FundamentalMatrixTransform
+from skimage.filters import sobel_h, sobel_v
+import matplotlib.pyplot as plt
 
-depth_map = cv2.imread('test1.jpg', cv2.IMREAD_UNCHANGED)
 
-# 将深度图转换为点云
-def depth_to_pointcloud(depth_map):
-    # 这里需要根据你的深度相机的具体参数来调整
-    h, w = depth_map.shape
-    fx, fy = 1.0, 1.0  # 假设的焦距
-    cx, cy = w / 2, h / 2
-    points = []
-    for y in range(h):
-        for x in range(w):
-            Z = depth_map[y, x]
-            if Z > 0:  # 忽略深度为0的点
-                X = (x - cx) * Z / fx
-                Y = (y - cy) * Z / fy
-                points.append([X, Y, Z])
-    return np.array(points)
+def select_roi(image):
 
-points = depth_to_pointcloud(depth_map)
+    r = cv2.selectROI("Select ROI", image)
+    cv2.destroyWindow("Select ROI")
+    return r  
 
-# 使用RANSAC算法检测平面
-model, inliers = ransac(points, FundamentalMatrixTransform, min_samples=8,
-                        residual_threshold=1, max_trials=1000)
 
-selected_points = points[inliers]
+def calculate_normal(depth_image, roi):
 
-# 选中的平面点可以用来估算平面的法向量
-# 在这个简单的示例中，我们假设选中的平面较为平整，直接计算其法向量
-# 更复杂的场景可能需要更精细的计算方法
-mean_normal = np.mean(np.cross(selected_points[:-1] - selected_points[1:], selected_points[1:] - selected_points[2:]), axis=0)
-mean_normal = mean_normal / np.linalg.norm(mean_normal)
+    x, y, w, h = roi
 
-print("Estimated plane normal vector:", mean_normal)
+    depth_roi = depth_image[y:y + h, x:x + w]
+
+    grad_x = sobel_h(depth_roi)
+    grad_y = sobel_v(depth_roi)
+
+    normals = np.dstack((-grad_x, -grad_y, np.ones_like(grad_x)))
+
+    norm = np.linalg.norm(normals, axis=2, keepdims=True)
+    normals_normalized = normals / norm
+
+    normal_average = np.mean(normals_normalized, axis=(0, 1))
+    return normal_average
+
+
+def visualize_result(image, roi, normal_vector):
+
+    fig, ax = plt.subplots()
+    ax.imshow(image, cmap='gray')
+
+    # 绘制ROI
+    x, y, w, h = roi
+    rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor='r', facecolor='none')
+    ax.add_patch(rect)
+
+    center_x, center_y = x + w / 2, y + h / 2
+
+    scale_factor = 200
+
+    # draw
+    ax.quiver(center_x, center_y, normal_vector[0], normal_vector[1], color='white', scale=scale_factor, width=0.005)
+
+    print(f"Normal Vector: {normal_vector}")
+    print(f"Arrow Position: ({center_x}, {center_y})")
+    print(f"Scale Factor: {scale_factor}")
+
+    plt.show()
+
+
+if __name__ == "__main__":
+
+    depth_image = cv2.imread('test5_depth.png', cv2.IMREAD_UNCHANGED)
+
+    if depth_image is None:
+        print("Error loading depth image.")
+    else:
+        depth_gray = cv2.cvtColor(depth_image, cv2.COLOR_BGR2GRAY)
+
+        #选择ROI
+        roi = select_roi(depth_gray)
+
+        # 计算faxian
+        normal_vector = calculate_normal(depth_gray, roi)
+
+        # 可视化
+        visualize_result(depth_gray, roi, normal_vector)
+
+
