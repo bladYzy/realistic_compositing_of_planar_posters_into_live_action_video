@@ -18,7 +18,7 @@ def calculate_rect_size(points):
     height = (calculate_distance(points[0], points[3]) + calculate_distance(points[1], points[2])) / 2
     return int(width), int(height)
 
-video_path = 'test7.mp4'
+video_path = 'test8.mp4'
 cap = cv2.VideoCapture(video_path)
 ret, frame = cap.read()
 
@@ -26,7 +26,7 @@ ret, frame = cap.read()
 fps = cap.get(cv2.CAP_PROP_FPS)
 frame_size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
-output_path = 'test_7.mp4'
+output_path = 'test_8.mp4'
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
 
@@ -35,7 +35,7 @@ cv2.imshow('Select 4 Points', frame)
 points = []
 cv2.setMouseCallback('Select 4 Points', select_points, [points])
 
-#select 4 point 选狗四个点
+#select 4 point 选够四个点
 while len(points) < 4:
     cv2.waitKey(1)
 cv2.destroyAllWindows()
