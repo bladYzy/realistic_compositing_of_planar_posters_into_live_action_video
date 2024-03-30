@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "F:\461\461_project\poisson\poisson.py", line 134, in <module>
+    result = poisson_blend(source_image, mask, target_image, offset_x, offset_y)
+  File "F:\461\461_project\poisson\poisson.py", line 119, in poisson_blend
+    laplacian_region = laplacian[region_flat : region_flat + np.prod(region_shape), region_flat : region_flat + np.prod(region_shape)]
+TypeError: 'dia_matrix' object is not subscriptable

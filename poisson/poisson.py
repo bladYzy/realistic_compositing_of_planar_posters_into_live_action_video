@@ -1,164 +1,143 @@
-import cv2
 import numpy as np
+import cv2
 import scipy.sparse
 from scipy.sparse.linalg import spsolve
+import matplotlib.pyplot as plt
 
+# Load images
+source_path = 'source0.jpg'
+target_path = 'target0.jpg'
+source_image = cv2.imread(source_path)
+target_image = cv2.imread(target_path)
 
-# Initialize the list to store mask points
-mask_points = []
+if source_image is None or target_image is None:
+    raise ValueError("One of the images didn't load correctly. Please check the file paths.")
 
-# Callback function for mouse events
+points = []
+mask_defined = False
+
+# Mouse callback function to capture clicks and draw the mask
 def draw_mask(event, x, y, flags, param):
-    global mask_points, mask_image
+    global points, mask_defined, source_image
 
-    if event == cv2.EVENT_LBUTTONDOWN:
-        mask_points.append((x, y))
+    if event == cv2.EVENT_LBUTTONDOWN and not mask_defined:
+        points.append((x, y))
 
-    elif event == cv2.EVENT_RBUTTONDOWN:
-        mask_points.pop()
+        # Draw the point
+        cv2.circle(source_image, (x, y), 5, (0, 255, 0), -1)
+        cv2.imshow("Source Image", source_image)
 
-    elif event == cv2.EVENT_MOUSEMOVE:
-        if flags == cv2.EVENT_FLAG_LBUTTON:
-            mask_points.append((x, y))
+        # Draw lines if more than 1 point
+        if len(points) > 1:
+            cv2.line(source_image, points[-2], points[-1], (255, 0, 0), 2)
+            cv2.imshow("Source Image", source_image)
 
-    # Redraw the mask
-    if len(mask_points) > 0:
-        mask_image[:] = image
-        pts = np.array(mask_points, np.int32)
-        pts = pts.reshape((-1, 1, 2))
-        cv2.polylines(mask_image, [pts], False, (0, 255, 0), 1)
-        cv2.imshow("Image", mask_image)
+        # If four points are selected, draw the polygon and set the mask_defined flag
+        if len(points) == 4:
+            cv2.fillPoly(source_image, [np.array(points)], (0, 255, 0))
+            mask_defined = True
+            cv2.imshow("Source Image", source_image)
+            cv2.waitKey(500)  # Wait 500 ms before closing the window
 
-# Initialize mask image
-image = cv2.imread('source1.jpg')  # 要getmask的照片 source image
-mask_image = image.copy()
-cv2.namedWindow("Image")
-cv2.setMouseCallback("Image", draw_mask)
+# Create a window and set the mouse callback function
+cv2.namedWindow("Source Image")
+cv2.setMouseCallback("Source Image", draw_mask)
 
+# Show the source image and wait until the user has defined the mask
+while not mask_defined:
+    cv2.imshow("Source Image", source_image)
+    key = cv2.waitKey(1) & 0xFF
+    if key == 27:  # ESC key
+        break
 
-def select_mask(image):
-    global mask_points, mask_image
-
-    print("Draw the mask region on the image. Right-click to remove last point. Press 'ENTER' to confirm.")
-    while True:
-        cv2.imshow("Image", mask_image)
-        key = cv2.waitKey(1) & 0xFF
-
-        if key == 13:  # Enter key
-            break
-
-    # Create mask from points
-    mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    points = np.array(mask_points, np.int32)
-    cv2.fillPoly(mask, [points], (255))
-
-    cv2.destroyWindow("Image")
-    return mask
-
-# Test the function
-mask = select_mask(image)
-cv2.imshow("Mask", mask)
-cv2.waitKey(0)
 cv2.destroyAllWindows()
 
+# Check if the mask is defined, if not, exit
+if not mask_defined:
+    raise ValueError("Mask not defined.")
 
+# Create the mask using the points selected by the user
+mask = np.zeros(source_image.shape[:2], dtype=np.uint8)
+cv2.fillPoly(mask, [np.array(points)], (255))
 
-def fix_images(source, mask, target, offset):
-    # Create empty arrays for the new source and mask with the size of the target
-    new_source = np.zeros_like(target)
-    new_mask = np.zeros_like(mask)
-    
-    # Calculate the bounds of the new source and mask
-    y_start = max(0, offset[0])
-    y_end = min(target.shape[0], offset[0] + source.shape[0])
-    
-    x_start = max(0, offset[1])
-    x_end = min(target.shape[1], offset[1] + source.shape[1])
-    
-    # Calculate the bounds of the original source and mask
-    source_y_start = max(0, -offset[0])
-    source_y_end = source_y_start + y_end - y_start
-    
-    source_x_start = max(0, -offset[1])
-    source_x_end = source_x_start + x_end - x_start
-    
-    # Place the source and mask into the new images at the offset position
-    new_source[y_start:y_end, x_start:x_end] = source[source_y_start:source_y_end, source_x_start:source_x_end]
-    new_mask[y_start:y_end, x_start:x_end] = mask[source_y_start:source_y_end, source_x_start:source_x_end]
-    
-    return new_source, new_mask, target
+# Offset of where to place the top-left corner of the source image on the target
+offset_x, offset_y = 50, 100
 
-
-def poisson_blend(source, mask, target, offset):
-    # Ensure the source, mask, and target are the same size
-    source, mask, target = fix_images(source, mask, target, offset)
+# The following code defines the Poisson blending function
+def poisson_blend(source, mask, target, offset_x, offset_y):
+    # Compute regions of interest
+    y_max, x_max = mask.shape
+    region_source = (
+        max(-offset_y, 0),
+        min(target.shape[0] - offset_y, y_max),
+        max(-offset_x, 0),
+        min(target.shape[1] - offset_x, x_max),
+    )
+    region_target = (
+        max(offset_y, 0),
+        min(target.shape[0], offset_y + y_max),
+        max(offset_x, 0),
+        min(target.shape[1], offset_x + x_max),
+    )
     
-    rows, cols, num_colors = source.shape
-    max_index = rows * cols
+    # Masks of region in which to blend
+    mask_target = mask[
+        region_source[0] : region_source[1], region_source[2] : region_source[3]
+    ]
+    mask_indices = np.where(mask_target.flatten())[0]
     
-    # Initialize the sparse matrix A and vectors x and b for each color channel
-    A = scipy.sparse.lil_matrix((max_index, max_index))
-    b = np.zeros((max_index, num_colors))
+    # Laplacian operator for a single channel
+    laplacian = scipy.sparse.diags([4, -1, -1, -1, -1], [0, -1, 1, -y_max, y_max], shape=(y_max * x_max, y_max * x_max))
     
-    # Create an index map for pixels
-    index_map = np.arange(max_index).reshape(rows, cols)
-    
-    # Define neighbor positions (up, left, down, right)
-    positions = [(-1, 0), (0, -1), (1, 0), (0, 1)]
-    
-    # Loop through each color channel
-    for color in range(num_colors):
-        # Flatten the color channels
-        source_flat = source[:, :, color].flatten()
-        target_flat = target[:, :, color].flatten()
+    # For each layer (channel) in the image
+    for channel in range(source.shape[2]):
+        # Take one channel of each image
+        source_layer = source[:, :, channel]
+        target_layer = target[:, :, channel]
         
-        # For each pixel in the mask
-        for index in range(max_index):
-            if mask.flat[index]:
-                A[index, index] = 4
-                for pos in positions:
-                    i, j = divmod(index, cols)
-                    ni, nj = i + pos[0], j + pos[1]
-                    if 0 <= ni < rows and 0 <= nj < cols:
-                        n_index = index_map[ni, nj]
-                        if mask[ni, nj]:
-                            A[index, n_index] = -1
-                        else:
-                            b[index, color] += target_flat[n_index]
-                # Compute b using the source's gradients
-                b[index, color] += 4 * source_flat[index] - sum(source_flat[index + offset] for offset in [1, -1, cols, -cols] if 0 <= index + offset < max_index)
+        # Create the masked source and target images
+        source_region = source_layer[
+            region_source[0] : region_source[1], region_source[2] : region_source[3]
+        ]
+        target_region = target_layer[
+            region_target[0] : region_target[1], region_target[2] : region_target[3]
+        ]
 
-    # Convert A to a more efficient format for solving
-    A = A.tocsc()
-    
-    # Solve the system for each color channel
-    result = np.zeros_like(target)
-    for color in range(num_colors):
-        x = spsolve(A, b[:, color])
-        result_flat = result[:, :, color].flatten()
-        result_flat[mask.flatten()] = x
-        result[:, :, color] = result_flat.reshape(rows, cols)
+        # Create the matrix representing the blending mask
+        mask_flat = mask_target.flatten()
+        mask_matrix = scipy.sparse.diags(mask_flat)
         
-    return result
+        # Create the known part of the Poisson equation
+        laplacian_masked = mask_matrix @ laplacian
+        target_flat = target_region.flatten()
+        boundary_values = laplacian_masked @ target_flat
+        
+        # Solve the Poisson equation
+        region_flat = region_source[0] * x_max + region_source[2]
+        region_shape = (region_source[1] - region_source[0], region_source[3] - region_source[2])
+        mask_flat_region = mask_flat[region_flat : region_flat + np.prod(region_shape)]
+        laplacian_region = laplacian[region_flat : region_flat + np.prod(region_shape), region_flat : region_flat + np.prod(region_shape)]
+        
+        # Solve for masked region
+        masked_region_flat = spsolve(laplacian_region, boundary_values[mask_flat_region])
+        masked_region = np.reshape(masked_region_flat, region_shape)
+        
+        # Place solved region into the target image
+        target_layer[
+            region_target[0] : region_target[1], region_target[2] : region_target[3]
+        ][mask_target == 255] = masked_region[mask_target == 255]
+        target[:, :, channel] = target_layer
+    
+    return target
 
+# Perform Poisson blending
+result = poisson_blend(source_image, mask, target_image, offset_x, offset_y)
 
-def main():
-    source_path = 'source1.jpg'
-    target_path = 'target1.jpg'
+# Save the output image
+output_path = 'blended_output.jpg'
+cv2.imwrite(output_path, result)
 
-    source = cv2.imread(source_path)
-    target = cv2.imread(target_path)
-
-    mask = select_mask(source)
-
-    source, mask, target = fix_images(source, mask, target, offset=(0, 0))
-
-    output = poisson_blend(source, mask, target)
-
-    cv2.imwrite('output.jpg', output)
-    cv2.imshow('Blended Image', output)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-if __name__ == '__main__':
-    main()
+# Display the output image
+plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
+plt.title('Blended Image')
+plt.show()
