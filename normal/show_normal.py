@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-
 def select_area_and_visualize_normal(frame_path, normal_map_path):
     frame = Image.open(frame_path)
     plt.figure(figsize=(10, 8))
@@ -28,7 +27,6 @@ def select_area_and_visualize_normal(frame_path, normal_map_path):
 
     print(f"Average Normal: {average_normal}")
     print(f"Normalized Normal Vector: {normalized_normal}")
-
 
 
 frame_path = 'test9_frame.jpg'
