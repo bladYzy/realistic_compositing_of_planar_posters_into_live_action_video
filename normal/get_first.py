@@ -14,11 +14,12 @@ def resize_first_frame(video_path, output_image_path, target_size=(384, 384)):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     img = Image.fromarray(frame)
 
-    img_resized = img.resize(target_size, Image.BILINEAR)
+    #img_resized = img.resize(target_size, Image.BILINEAR)
+    #img_resized.save(output_image_path)
 
-    img_resized.save(output_image_path)
+    img.save(output_image_path)
     print(f"Resized first frame saved to {output_image_path}")
 
 video_path = 'test9.mp4'
-output_image_path = 'test9_frame.jpg'
+output_image_path = 'test9_frame_og.jpg'
 resize_first_frame(video_path, output_image_path)
