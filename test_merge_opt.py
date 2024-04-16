@@ -297,7 +297,7 @@ class Intrinsic():
         
         return image_bgr
 intrinsic = Intrinsic(_paper=False)
-video_path = 'test9.mp4'
+video_path = 'test10.mp4'
 cap = cv2.VideoCapture(video_path)
 ret, frame = cap.read()
 
@@ -306,7 +306,7 @@ fps = cap.get(cv2.CAP_PROP_FPS)
 frame_size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
 
-output_path = 'tracked_video_9.mp4'
+output_path = 'tracked_video_10.mp4'
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
 
