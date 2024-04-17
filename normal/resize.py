@@ -14,11 +14,13 @@ def resize_image(image_path, target_size):
 
 if __name__ == "__main__":
 
-    image_path = "test9_frame_normal.png"
+    image_path = "test3/test3_frame_resize_normal.png"
     target_size = (720, 1280)
+    #target_size = (384, 384)
+
     resized_image = resize_image(image_path, target_size)
     if resized_image is not None:
         cv2.imshow('Resized Image', resized_image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-        cv2.imwrite("test9_frame_normal_resize.png", resized_image)
+        cv2.imwrite("test3/test3_normal_resize.png", resized_image)

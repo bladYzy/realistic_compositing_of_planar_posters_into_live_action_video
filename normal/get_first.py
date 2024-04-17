@@ -20,6 +20,6 @@ def resize_first_frame(video_path, output_image_path, target_size=(384, 384)):
     img.save(output_image_path)
     print(f"Resized first frame saved to {output_image_path}")
 
-video_path = 'test9.mp4'
-output_image_path = 'test9_frame_og.jpg'
+video_path = 'test3/test3.mp4'
+output_image_path = 'test3/test3_frame.jpg'
 resize_first_frame(video_path, output_image_path)
