@@ -26,7 +26,6 @@ def color_planes(image, labels):
         colored_image[labels == label] = color
     return colored_image
 
-# 载入图片
 normal_map = cv2.imread('test9_frame_normal_resize.png')
 image = cv2.imread('test9_frame_og.jpg')
 
