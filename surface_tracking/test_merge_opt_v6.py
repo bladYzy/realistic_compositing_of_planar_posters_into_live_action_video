@@ -52,7 +52,12 @@ def magnify_region(frame, x, y, zoom_scale, zoom_window_size):
     y2 = int(min(y + zoom_size, frame.shape[0]))
     zoom_region = frame[y1:y2, x1:x2]
     zoom_region = cv2.resize(zoom_region, zoom_window_size, interpolation=cv2.INTER_LINEAR)
-    return zoom_region, x1, y1
+
+    center_x = zoom_window_size[0] // 2
+    center_y = zoom_window_size[1] // 2
+
+    return zoom_region, x1, y1, center_x, center_y
+
 
 def calculate_rect_size(points):
     width = (calculate_distance(points[0], points[1]) + calculate_distance(points[2], points[3])) / 2
@@ -82,13 +87,18 @@ while len(points) < 4:
         zoom_scale += 0.5
     elif key == ord('k'):  # Decrease zoom
         zoom_scale = max(1, zoom_scale - 0.5)
+    # 处理键盘输入和放大区域的更新
     if key in [ord('d'), ord('f')]:  # 'd' for regular magnification, 'f' for feature detection
-        zoom_region, x1, y1 = magnify_region(frame, *mouse_pos, zoom_scale, zoom_window_size)
+        zoom_region, x1, y1, center_x, center_y = magnify_region(frame, *mouse_pos, zoom_scale, zoom_window_size)
+
         if key == ord('f'):
             zoom_region, temp_corners = detect_corners(zoom_region)
             corners = [(c[1] / zoom_scale + x1, c[0] / zoom_scale + y1) for c in temp_corners]
         else:
             corners = []
+        cv2.line(zoom_region, (center_x, center_y - 10), (center_x, center_y + 10), (255, 0, 0), 2)
+        cv2.line(zoom_region, (center_x - 10, center_y), (center_x + 10, center_y), (255, 0, 0), 2)
+
         cv2.imshow('Magnifier', zoom_region)
 
 cv2.destroyAllWindows()
