@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 class PerspectiveVideoProcessor:
-    def __init__(self, video_path, poster_path, zoom_scale=5, zoom_window_size=(400, 400)):
+    def __init__(self, video_path, poster_path,output_path, zoom_scale=5, zoom_window_size=(400, 400)):
         self.video_path = video_path
         self.poster_path = poster_path
         self.zoom_scale = zoom_scale
@@ -13,6 +13,7 @@ class PerspectiveVideoProcessor:
         self.mouse_pos = [0, 0]
         self.corners = []
         self.poster = cv2.imread(self.poster_path)
+        self.output_path = output_path
 
         if self.poster is None:
             print("Failed to load poster image.")
@@ -28,6 +29,11 @@ class PerspectiveVideoProcessor:
         self.old_gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
         cv2.imshow('Select 4 Points', self.frame)
         cv2.setMouseCallback('Select 4 Points', self.select_points)
+        # Set up video writer
+        fps = self.cap.get(cv2.CAP_PROP_FPS)
+        frame_size = (int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        self.out = cv2.VideoWriter(self.output_path, fourcc, fps, frame_size)
 
     def detect_corners(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -174,7 +180,7 @@ class PerspectiveVideoProcessor:
                 frame = cv2.bitwise_or(frame, warped_poster)
 
                 cv2.imshow('Tracked', frame)
-
+                self.out.write(frame)
                 self.old_gray = gray_frame.copy()
                 self.points = good_points.reshape(-1, 1, 2)
 
@@ -184,13 +190,12 @@ class PerspectiveVideoProcessor:
     def run(self):
         self.select_points_interactively()
         self.process_frames()
-
-    def cleanup(self):
         self.cap.release()
+        self.out.release()
         cv2.destroyAllWindows()
 
+
 if __name__ == "__main__":
-    video_processor = VideoProcessor('test7.mp4')
+    video_processor = PerspectiveVideoProcessor('test3.mp4', 'poster.png', 'output.mp4')
     video_processor.run()
-    video_processor.cleanup()
 

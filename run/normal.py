@@ -3,14 +3,15 @@ import numpy as np
 from get_normal import GetNormal
 from PIL import Image
 
-class VideoPointMapper:
-    def __init__(self, video_path, normal_map_path, poster_path):
+class NormalVideoProcessor:
+    def __init__(self, video_path, output_path, poster_path):
         self.video_path = video_path
-        self.normal_map_path = normal_map_path
+        self.normal_map_path = output_path
         self.poster_path = poster_path
         self.points = []
         self.rect_done = False
         self.load_video()
+        self.output_path = output_path
 
     def load_video(self):
         self.cap = cv2.VideoCapture(self.video_path)
@@ -96,9 +97,8 @@ class VideoPointMapper:
         # Set up video writer
         fps = self.cap.get(cv2.CAP_PROP_FPS)
         frame_size = (int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-        output_path = 'output.mp4'
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
+        out = cv2.VideoWriter(self.output_path, fourcc, fps, frame_size)
 
         # Points for perspective transformation
         poster_points = np.float32([[0, 0], [rect_size[0], 0], [rect_size[0], rect_size[1]], [0, rect_size[1]]])
@@ -148,5 +148,5 @@ if __name__ == "__main__":
     video_path = 'test4/test4.mp4'
     normal_map_path = 'test4'
     poster_path = 'test3/poster.png'
-    mapper = VideoPointMapper(video_path, normal_map_path, poster_path)
+    mapper = NormalVideoProcessor(video_path, normal_map_path, poster_path)
     mapper.run()
