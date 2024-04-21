@@ -49,7 +49,7 @@ def calculate_remaining_points(points, height):
     top_left, top_right = points
     bottom_left = (top_left[0], top_left[1] + height)
     bottom_right = (top_right[0], top_right[1] + height)
-    return [top_left, top_right, bottom_left, bottom_right]
+    return [top_left, top_right, bottom_right, bottom_left]
 
 
 
