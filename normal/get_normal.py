@@ -1,69 +1,62 @@
-import cv2
-import numpy as np
-from sklearn.cluster import KMeans
-import ctypes
+import torch
+from torchvision import transforms
+import PIL
+from PIL import Image
 
-def get_screen_size():
-    user32 = ctypes.windll.user32
-    screen_width = user32.GetSystemMetrics(0)
-    screen_height = user32.GetSystemMetrics(1)
-    return screen_width, screen_height
+import os.path
+from omnidata_tools.torch.modules.midas.dpt_depth import DPTDepthModel
+from omnidata_tools.torch.data.transforms import get_transform
 
-def set_window(name, image_shape):
-    screen_width, screen_height = get_screen_size()
-    scale = min(screen_width / image_shape[1], screen_height / image_shape[0], 1)
-    window_width = int(image_shape[1] * scale)
-    window_height = int(image_shape[0] * scale)
-    cv2.namedWindow(name, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(name, window_width, window_height)
+class GetNormal:
+    def __init__(self, image_og, output_path):
+        self.image_og = image_og
+        self.image_width, self.image_height = self.image_og.size
+        self.output_path = output_path
+        self.root_dir = './pretrained_models/'
+        self.map_location = (lambda storage, loc: storage.cuda()) if torch.cuda.is_available() else torch.device('cpu')
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.image_size = 384
+        self.image= self.image_og.resize((self.image_size, self.image_size), Image.LANCZOS)
+        self.model = DPTDepthModel(backbone='vitb_rn50_384', num_channels=3) # DPT Hybrid
+        self.trans_totensor = transforms.Compose([transforms.Resize(self.image_size, interpolation=PIL.Image.BILINEAR),
+                                                  transforms.CenterCrop(self.image_size),
+                                                  get_transform('rgb', image_size=None)])
+        self.trans_topil = transforms.ToPILImage()
 
-def segment_planes(normals, n_clusters=3):
-    reshaped_normals = normals.reshape(-1, 3)
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(reshaped_normals)
-    labels = kmeans.labels_.reshape(normals.shape[0], normals.shape[1])
-    return labels, kmeans.cluster_centers_
+    def save_outputs(self):
+        with torch.no_grad():
+            save_path = os.path.join(self.output_path, 'normal_map.png')
+            img_tensor = self.trans_totensor(self.image)[:3].unsqueeze(0).to(self.device)
+            if img_tensor.shape[1] == 1:
+                img_tensor = img_tensor.repeat_interleave(3, 1)
+            output = self.model(img_tensor).clamp(min=0, max=1)
+            normal_map = self.trans_topil(output[0])
+            resized_normal_map = normal_map.resize((self.image_width, self.image_height), Image.LANCZOS)
 
-def display_segmented_planes(image, labels, cluster_centers):
-    unique_labels = np.unique(labels)
-    colors = np.random.randint(0, 255, size=(len(unique_labels), 3), dtype=np.uint8)
-    segmented_image = colors[labels]
-    set_window("Segmented Planes", image.shape)
-    cv2.imshow("Segmented Planes", segmented_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    return colors
+            resized_normal_map.save(save_path)
+            print(f'Writing output {save_path} ...')
+            '''
+            self.trans_topil(output[0]).save(save_path)
+            print(f'Writing output {save_path} ...')
+            normal_map = self.trans_topil(output[0])
+            normal_map=normal_map.resize((self.image_width, self.image_height), Image.ANTIALIAS)
+            '''
+            return resized_normal_map
 
-def select_plane_and_get_normal(image, labels, cluster_centers, colors):
-    print("Select a plane by clicking on it in the window.")
-    def mouse_callback(event, x, y, flags, param):
-        if event == cv2.EVENT_LBUTTONDOWN:
-            label = labels[y, x]
-            print(f"Selected Plane Normal: {cluster_centers[label]}")
-            color = colors[label]
-            selected_region = np.all(colors[labels] == color, axis=-1)
-            set_window("Selected Plane", image.shape)
-            cv2.imshow("Selected Plane", selected_region.astype(np.uint8) * 255)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
-    segmented_image = colors[labels]
-    set_window("Select Plane", image.shape)
-    cv2.setMouseCallback("Select Plane", mouse_callback)
-    cv2.imshow("Select Plane", segmented_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-
-def main(image_path, normal_map_path):
-    image = cv2.imread(image_path)
-    normals = cv2.imread(normal_map_path, cv2.IMREAD_COLOR).astype(np.float32) / 127.5 - 1
-    labels, cluster_centers = segment_planes(normals, n_clusters=5)
-    colors = display_segmented_planes(image, labels, cluster_centers)
-    select_plane_and_get_normal(image, labels, cluster_centers, colors)
+    def set_model(self):
+        pretrained_weights_path = self.root_dir + 'omnidata_dpt_normal_v2.ckpt'
+        checkpoint = torch.load(pretrained_weights_path, map_location=self.map_location)
+        if 'state_dict' in checkpoint:
+            state_dict = {}
+            for k, v in checkpoint['state_dict'].items():
+                state_dict[k[6:]] = v
+        else:
+            state_dict = checkpoint
+        self.model.load_state_dict(state_dict)
+        self.model.to(self.device)
 
 
+    def run(self):
+        self.set_model()
+        return self.save_outputs()
 
-if __name__ == "__main__":
-    image_path = 'test2/test2.jpg'
-    normal_map_path = 'test2/test2_normal_resize.png'
-    main(image_path, normal_map_path)

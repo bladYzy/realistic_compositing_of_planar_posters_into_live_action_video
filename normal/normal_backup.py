@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+from get_normal import GetNormal
+from PIL import Image
 
 # Initialize global variables
 points = []
@@ -21,23 +23,42 @@ def select_points(event, x, y, flags, param):
         if len(points) == 2:
             rect_done = True
 
+def normalize(v):
+    norm = np.linalg.norm(v)
+    if norm == 0:
+        return v
+    return v / norm
 
-def calculate_remaining_points(points, height, normal_map):
-    p1, p2 = points
-    # Calculate the average normal at the midpoint of the line segment
-    mid_x, mid_y = (p1[0] + p2[0]) // 2, (p1[1] + p2[1]) // 2
-    normal = normal_map[mid_y, mid_x]  # Assuming normal_map is appropriately scaled
-    normal = normal / np.linalg.norm(normal) if np.linalg.norm(normal) != 0 else normal
 
-    # Calculate perpendicular vector to the line segment
-    vector = np.array([p2[0] - p1[0], p2[1] - p1[1]], dtype=np.float32)
-    perpendicular = np.array([-vector[1], vector[0]])
-    perpendicular = perpendicular / np.linalg.norm(perpendicular) * height
-    print("normal:", normal)
-    # Compute the remaining points
-    p3 = np.array(p2) + perpendicular
-    p4 = np.array(p1) + perpendicular
-    return [p1, p2, p3.astype(int), p4.astype(int)]
+def project_to_plane(point, plane_normal):
+    point_3d = np.append(point, 0)
+    plane_normal = normalize(plane_normal)
+    distance = np.dot(point_3d, plane_normal)
+    return point_3d - distance * plane_normal
+
+
+
+def calculate_average_normal(rectangle_points, normal_map):
+    normals = [normal_map[int(p[1]), int(p[0])] for p in rectangle_points]
+    mean_normal = np.mean(normals, axis=0)
+    return normalize(mean_normal)
+
+
+def calculate_remaining_points(points, height):
+
+    top_left, top_right = points
+    bottom_left = (top_left[0], top_left[1] + height)
+    bottom_right = (top_right[0], top_right[1] + height)
+    return [top_left, top_right, bottom_left, bottom_right]
+
+
+
+def map_points_to_plane(rectangle_points, target_normal):
+    return [project_to_plane(point, target_normal)[:2] for point in rectangle_points]
+
+
+
+
 
 #计算矩形的尺寸
 #size of rect
@@ -51,10 +72,15 @@ def calculate_distance(p1, p2):
 
 # Load video and normal map
 video_path = 'test4/test4.mp4'
-normal_map_path = 'test4/test4_frame_resize_normal.png'
 cap = cv2.VideoCapture(video_path)
-normal_map = cv2.imread(normal_map_path)  # Assume normal map is a 3-channel image
 ret, frame = cap.read()
+
+
+normal_generator = GetNormal(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)), 'test4')
+normal_map_image = normal_generator.run()
+normal_map = np.array(normal_map_image)
+normal_map = cv2.cvtColor(normal_map, cv2.COLOR_RGB2BGR)
+cv2.imshow('Normal Map', normal_map)
 
 # Setup display window and mouse callback
 cv2.imshow('Select two top point', frame)
@@ -74,7 +100,10 @@ while True:
         print("Invalid input. Please enter a valid integer.")
 
 # 确保在调用光流算法之前将点转换为正确的格式
-all_points = calculate_remaining_points(points, height, normal_map)
+all_points = calculate_remaining_points(points, height)
+normal = calculate_average_normal(all_points, normal_map)
+all_points = map_points_to_plane(all_points, normal)
+
 print("All Points:", all_points)
 
 # 将点转换为适当的数据类型和形状

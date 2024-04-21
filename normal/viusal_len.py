@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
 
-image_path = 'test1/test1_frame.jpg'  # 修改为你的图片路径
+image_path = 'test4/test4_frame.jpg'  # 修改为你的图片路径
 img = mpimg.imread(image_path)
 
 points = []
