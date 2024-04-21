@@ -57,9 +57,6 @@ def map_points_to_plane(rectangle_points, target_normal):
     return [project_to_plane(point, target_normal)[:2] for point in rectangle_points]
 
 
-
-
-
 #计算矩形的尺寸
 #size of rect
 def calculate_rect_size(points):
@@ -80,7 +77,6 @@ normal_generator = GetNormal(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2R
 normal_map_image = normal_generator.run()
 normal_map = np.array(normal_map_image)
 normal_map = cv2.cvtColor(normal_map, cv2.COLOR_RGB2BGR)
-cv2.imshow('Normal Map', normal_map)
 
 # Setup display window and mouse callback
 cv2.imshow('Select two top point', frame)

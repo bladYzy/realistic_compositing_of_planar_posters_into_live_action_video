@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 
-class VideoProcessor:
-    def __init__(self, video_path, poster_path='poster.png', zoom_scale=5, zoom_window_size=(400, 400)):
+class PerspectiveVideoProcessor:
+    def __init__(self, video_path, poster_path, zoom_scale=5, zoom_window_size=(400, 400)):
         self.video_path = video_path
         self.poster_path = poster_path
         self.zoom_scale = zoom_scale
