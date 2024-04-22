@@ -3,7 +3,7 @@ import numpy as np
 from .get_normal import GetNormal
 from .shading import Shading
 from PIL import Image
-
+#####
 class NormalVideoProcessor:
     def __init__(self, video_path, output_path, poster_path):
         self.video_path = video_path
