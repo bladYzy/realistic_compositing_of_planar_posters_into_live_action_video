@@ -177,3 +177,40 @@ if __name__ == "__main__":
     poster_path = 'test3/poster.png'
     mapper = NormalVideoProcessor(video_path, normal_map_path, poster_path)
     mapper.run()
+
+
+'''
+@inproceedings{eftekhar2021omnidata,
+  title={Omnidata: A Scalable Pipeline for Making Multi-Task Mid-Level Vision Datasets From 3D Scans},
+  author={Eftekhar, Ainaz and Sax, Alexander and Malik, Jitendra and Zamir, Amir},
+  booktitle={Proceedings of the IEEE/CVF International Conference on Computer Vision},
+  pages={10786--10796},
+  year={2021}
+}
+
+
+@inproceedings
+
+
+{kar20223d,
+ title = {3
+D
+Common
+Corruptions and Data
+Augmentation},
+author = {Kar, O{\u
+{g}}uzhan
+Fatih and Yeo, Teresa and Atanov, Andrei and Zamir, Amir},
+booktitle = {Proceedings
+of
+the
+IEEE / CVF
+Conference
+on
+Computer
+Vision and Pattern
+Recognition},
+pages = {18963 - -18974},
+        year = {2022}
+}
+'''

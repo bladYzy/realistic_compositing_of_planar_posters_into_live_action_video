@@ -4,7 +4,35 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="231b1648-28f3-4fca-84f4-19a49ff1d1db" name="变更" comment="" />
+    <list default="true" id="231b1648-28f3-4fca-84f4-19a49ff1d1db" name="变更" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/poster.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/poster2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/poster3.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/poster4.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/poster5.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/run/normal.py" beforeDir="false" afterPath="$PROJECT_DIR$/run/normal.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/run/shading.py" beforeDir="false" afterPath="$PROJECT_DIR$/run/shading.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test10.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test11.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test12.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test13.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test14.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test15.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test16.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test17.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test18.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test19.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test20.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test21.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test22.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test23.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test24.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test25.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test26.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test27.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/test28.mp4" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -21,13 +49,13 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "shading"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;shading&quot;
   }
-}]]></component>
+}</component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="应用程序级" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="默认任务">

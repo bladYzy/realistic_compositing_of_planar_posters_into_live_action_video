@@ -263,3 +263,23 @@ class Shading():
         image_bgr = cv2.cvtColor(image_uint8, cv2.COLOR_RGB2BGR)
         
         return image_bgr
+
+
+
+
+'''
+@INPROCEEDINGS{careagaCompositing,  
+	author={Chris Careaga and S. Mahdi H. Miangoleh and Ya\u{g}{\i}z Aksoy},  
+	title={Intrinsic Harmonization for Illumination-Aware Compositing},  
+	booktitle={Proc. SIGGRAPH Asia},  
+	year={2023},  
+}
+
+@ARTICLE{careagaIntrinsic,
+  author={Chris Careaga and Ya\u{g}{\i}z Aksoy},
+  title={Intrinsic Image Decomposition via Ordinal Shading},
+  journal={ACM Trans. Graph.},
+  year={2023},
+}
+
+'''
